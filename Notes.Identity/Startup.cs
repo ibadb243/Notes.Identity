@@ -1,17 +1,47 @@
-﻿namespace Notes.Identity
+﻿using Duende.IdentityServer.Models;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Notes.Identity.Data;
+using Notes.Identity.Models;
+
+namespace Notes.Identity
 {
     public class Startup
     {
-        public IConfiguration Configuration { get; set; }
+        public IConfiguration AppConfiguration { get; set; }
 
         public Startup(IConfiguration configuration)
         {
-            Configuration = configuration;
+            AppConfiguration = configuration;
         }
 
         public void ConfigureServices(IServiceCollection services)
         {
-            
+            var connectionString = AppConfiguration.GetValue<string>("DbConnection");
+
+            services.AddDbContext<AuthDbContext>(options =>
+            {
+                options.UseSqlite(connectionString);
+            });
+
+            services.AddIdentity<AppUser, IdentityRole>()
+                .AddEntityFrameworkStores<AuthDbContext>()
+                .AddDefaultTokenProviders();
+
+            services.AddIdentityServer()
+                .AddAspNetIdentity<AppUser>()
+                .AddInMemoryApiResources(Configuration.ApiResources)
+                .AddInMemoryIdentityResources(Configuration.IdentityResources)
+                .AddInMemoryApiScopes(Configuration.ApiScopers)
+                .AddInMemoryClients(Configuration.Clients)
+                .AddDeveloperSigningCredential();
+
+            services.ConfigureApplicationCookie(config =>
+            {
+                config.Cookie.Name = "Notes.Identity.Cookie";
+                config.LoginPath = "/Auth/Login";
+                config.LogoutPath = "/Auth/Logout";
+            });
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
@@ -20,6 +50,16 @@
             {
                 app.UseDeveloperExceptionPage();
             }
+
+            app.UseRouting();
+            app.UseIdentityServer();
+            app.UseEndpoints(endpoints =>
+            {
+                endpoints.Map("/", async context =>
+                {
+                    await context.Response.WriteAsync("Hello, World!");
+                });
+            });
         }
     }
 }

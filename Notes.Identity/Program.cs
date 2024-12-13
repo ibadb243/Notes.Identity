@@ -1,3 +1,5 @@
+using Notes.Identity.Data;
+
 namespace Notes.Identity
 {
     public class Program
@@ -5,6 +7,21 @@ namespace Notes.Identity
         public static void Main(string[] args)
         {
             var host = CreateHostBuilder(args).Build();
+
+            using(var scope = host.Services.CreateScope())
+            {
+                var serviceProvider = scope.ServiceProvider;
+                try
+                {
+                    var context = serviceProvider.GetRequiredService<AuthDbContext>();
+                    DbInitializer.Initialize(context);
+                }
+                catch (Exception ex)
+                {
+                    var logger = serviceProvider.GetRequiredService<ILogger>();
+                    logger.LogError(ex, "An error occurred while app initialization");
+                }
+            }
 
             host.Run();
         }
